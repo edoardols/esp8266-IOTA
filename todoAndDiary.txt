@@ -1,0 +1,48 @@
+------------------------------ To-Do ------------------------------
+
+- refactoring code (rendere più semplice l'aggiornamento del codice)
+
+- misura del consumo energetico => dimensionamento delle batterie
+    => print del chart dei consumi
+    - always on
+    - intervalli => uso dello deepsleep etc (disabilitare il led esterno)
+    
+- introdurre l'uso del sensore MQ-135
+
+- creazione del payload => array/lista con tutti i parametri
+
+---------------------------- Structure ----------------------------
+
+lib
+    sensore DHT22
+    sensore MQ-135
+
+src
+    lib (classi per la gestione delle richieste)
+        OK => HTTPS (post e get)
+        //dipendenti => certificati ???
+        => classe che memorizza il formato JSON per IOTA
+        => dati > hex > JSON
+main.cpp
+    setup
+        => collegarsi al wifi
+        => condifigurazione del tempo
+    loop
+        => controllare se il tempo è sincronizzato
+        => controllare se è connesso al wifi
+        => eseguire lettura del sensore
+        => controllare se i dati letti sono validi altrimenti rieseguire la lettura
+        => elaborare i dati e convertirli in Hexdecimal
+        => inpacchettare i dati letti nel formato JSON
+        => inviare i dati al nodo Hornet IOTA
+        => verificare che sono stati ricevuti correttamente
+        => entrare in sleep mode (risparmiare energia)
+        => aspettare tempo x (es 1 minuto)
+
+------------------------------ Log ------------------------------
+
+--------------------------- 10/03/2022 --------------------------
+Creation of this file for keep tracks of progress
+
+--------------------------- 03/03/2022 --------------------------
+Initial Commit on GitHub link reposiroty: https://github.com/edoardols/esp8266-IOTA
