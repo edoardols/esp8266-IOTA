@@ -8,7 +8,7 @@
 #include <DHT.h>
 
 //Project Specific Library
-#include "asciiToHex.cpp"
+//#include "asciiToHex.cpp"
 
 //Configuration File
 #include "hornet/hornetAPI.h"
@@ -37,12 +37,66 @@ float humidity;
 unsigned long lastTime = 0;  
 unsigned long timerDelay = 5000;  // send readings timer milliseconds
 
+const float ECT = 1.00;
+
 /* -------------------- PAYLOAD IOTA -------------------- */
-String iotaindex;
+//String iotaindex;
+String iotaindexHex;
+
 String timestamp;
 String coordinate;
+String dataArray[3];
 
 /* -------------------- FUNZIONI ACCESSORIE -------------------- */
+
+/*
+String asciiToHexdecimal(String ascii) {
+
+    // ***** debug ******
+    Serial.println("ASCII: " + ascii);
+    // ***** end debug ******
+
+    // buffer to store hext representation
+    // twice the size of the text to convert plus space for terminating nul character
+    //char buffer[sizeof(ascii) * 2 + 1];
+    char buffer[ascii.length() * 2 + 1];
+    Serial.print("BUFFERSIZE: ");
+    Serial.println(sizeof(ascii) * 2 + 1);
+    // 'clear' buffer
+    buffer[0] = '\0';
+
+    // loop through character array
+    for (uint8_t cnt = 0; cnt < ascii.length(); cnt++) {
+        // conver each character to its hex representation
+        itoa(ascii[cnt], &buffer[cnt * 2], 16);
+    }
+
+    // ***** debug ******
+    Serial.print("BUFFER: ");
+    Serial.println(buffer);
+    // ***** end debug ******
+
+    return buffer;
+}
+*/
+
+String asciiToHexdecimal(String ascii) {
+
+    String dataHex = "";
+    for (size_t i = 0; i < ascii.length(); i++) {
+
+        if(ascii.charAt(i) == '\r'){
+            dataHex.concat("0");
+        }
+        else{
+            dataHex.concat( String( int( ascii.charAt(i) ) , HEX) );
+        }
+    }
+
+    return dataHex;
+}
+
+
 
 /* -------------------- HTTPS REQUEST -------------------- */
 
@@ -81,9 +135,8 @@ String makeData() {
             "---Fine sensore---";
 }
 */
-
 /*
-String makeData() {
+String makeData(String[] Data) {
     //String iotadata = "data from a esp8266 with dht11 sensor"
     //humidity = dht.readHumidity();
     //temperature_Celsius = dht.readTemperature();
@@ -95,17 +148,50 @@ String makeData() {
             "Umidità: " + String(dht.readHumidity(), 3) + " %"+ "\r\n" +
             "---Fine sensore---";
 }*/
-
-String makeData() {
+String makeData(String passedDataArray[]) {
     //String iotadata = "data from a esp8266 with dht11 sensor"
-    return "esp8266withdht11sensor";
+    //humidity = dht.readHumidity();
+    //temperature_Celsius = dht.readTemperature();
+    return "---Informazioni---\r\n"
+            "Data origins: esp8266 with dht11 sensor\r\n"
+            "---Fine Informazioni---\r\n"
+            "---Sensore---\r\n"
+            "Temperatura: " + passedDataArray[0] + " C" + "\r\n" +
+            "Umidità: " + passedDataArray[1] + " %"+ "\r\n" +
+            passedDataArray[2] + "\r\n" +
+            "---Fine sensore---";
 }
 
+//String makeData() {
+//    //String iotadata = "data from a esp8266 with dht11 sensor"
+//    return "esp8266withdht11sensor";
+//}
+
+/*
 String makePayload(String index, String data) {
     //Hornet API: https://editor.swagger.io/?url=https://raw.githubusercontent.com/rufsam/protocol-rfcs/master/text/0026-rest-api/0026-rest-api.yaml
     // index => HEX
     // data => HEX
     return "{\"payload\":{\"type\":2,\"index\":\"" + asciiToHexdecimal(index) + "\",\"data\":\"" + asciiToHexdecimal(data) + "\"}}";
+
+}
+*/
+
+String makePayload(String index, String data) {
+    //Hornet API: https://editor.swagger.io/?url=https://raw.githubusercontent.com/rufsam/protocol-rfcs/master/text/0026-rest-api/0026-rest-api.yaml
+    // index => HEX
+    // data => HEX
+    //Serial.print("DATA: ");
+    //Serial.println(data);
+    //Serial.print("LENG: ");
+    //Serial.println(data.length());
+    //Serial.println(sizeof(data));
+    //String testlung = "414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141";
+
+
+    return "{\"payload\":{\"type\":2,\"index\":\"" + index + "\",\"data\":\"" + asciiToHexdecimal(data) + "\"}}";
+
+    //return "{\"payload\":{\"type\":2,\"index\":\"" + index + "\",\"data\":\"" + testlung + "\"}}";
 
 }
 
@@ -123,7 +209,7 @@ void setup() {
     WiFi.begin(ssid, password);
 
     //step3 => Set time via NTP, as required for x.509 validation
-    configTime(3 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+    configTime(ECT, 0, "pool.ntp.org", "time.nist.gov");
 
     /***** debug ******/
     Serial.println("Waiting for NTP time sync: ");
@@ -186,11 +272,16 @@ void loop() {
     Serial.printf("Humidity= %f %\n", humidity);
     /***** end debug ******/
 
+    //MQ-135
+
+
     //step5 => incapsulate data in json (create payload) //TO-DO
 
     //stabilire l'indice
     //stabilire il formato della richiesta con le varie specifiche (nome stazione, posizione, timestamp)
-    iotaindex = "esp8266iota_el";
+    //iotaindex = "esp8266iota_elnew";
+    iotaindexHex = "65737038323636696f74615f656c6e6577";
+
 
     /*
     //time
@@ -206,7 +297,7 @@ void loop() {
     timestamp = asctime(&timeinfo);
     */
     
-    coordinate = "41°40'23.1\"N 12°46'05.2\"E";
+    //coordinate = "41°40'23.1\"N 12°46'05.2\"E";
 
 
     //step5 => send data to iota node
@@ -220,10 +311,17 @@ void loop() {
     Serial.print("HOST: ");
     Serial.println(host_iotanode);
 
-    String testdata = makeData();
-    Serial.println("DATA: \r\n" + testdata);
 
-    String payload = makePayload(iotaindex, testdata);
+
+    dataArray[0] = String(humidity, 3);
+    dataArray[1] = String(temperature_Celsius, 3);
+    dataArray[2] = "testarray";
+
+    String testdata = makeData(dataArray);
+    //Serial.println("DATA: \r\n" + testdata);
+
+    //String payload = makePayload(iotaindex, testdata);
+    String payload = makePayload(iotaindexHex, testdata);
     Serial.println("PAYLOAD: \r\n" + payload);
 
     String post = postHttps(hornet_api_post_message, host_iotanode, payload);
