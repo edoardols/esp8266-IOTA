@@ -6,14 +6,16 @@
 //Arduino Sensor Library
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
+#include <MQ135.h>
 
-//Project Specific Library
-//#include "asciiToHex.cpp"
+//Project Library
 
 //Configuration File
 #include "hornet/hornetAPI.h"
 #include "hornet/hornetNode.h"
 #include "network/wifiCredentials.h"
+
+#include "JSON/information.h"
 
 //Use WiFiClientSecure class to create TLS connection
 WiFiClientSecure iotaNode;
@@ -27,88 +29,67 @@ uint8_t DHTPin = 12; //D6
 DHT dht(DHTPin, DHTTYPE);
 
 //MQ-135 Sensor
+#define PIN_MQ135 0
+MQ135 mq135_sensor(PIN_MQ135);
 
+//DIGITAL_PIN 16 must be connected with RESET PIN for DeepSleep to work
 
+//Time information for Italy
+#define UTC_offset 1 // UTC +1
+#define DST_offset 1 //Daylight Saving Time offset in hour
 
+// -------------------- Data Payload IOTA -------------------- //;
 
-float temperature_Celsius;
-float humidity;
+int DATE_INDEX = 0;
+int TIME_INDEX = 1;
+int TEMPERATURE_INDEX = 2;
+int HUMIDITY_INDEX = 3;
+int CO2_PPM_INDEX = 4;
 
-unsigned long lastTime = 0;  
-unsigned long timerDelay = 5000;  // send readings timer milliseconds
+String sensorData[5];
 
-const float ECT = 1.00;
+// -------------------- FUNZIONI ACCESSORIE -------------------- //
 
-/* -------------------- PAYLOAD IOTA -------------------- */
-//String iotaindex;
-String iotaindexHex;
-
-String timestamp;
-String coordinate;
-String dataArray[3];
-
-/* -------------------- FUNZIONI ACCESSORIE -------------------- */
-
+//TO-DO https://www.timeanddate.com/time/change/italy
 /*
-String asciiToHexdecimal(String ascii) {
+bool isDSTon(String data) {
 
-    // ***** debug ******
-    Serial.println("ASCII: " + ascii);
-    // ***** end debug ******
-
-    // buffer to store hext representation
-    // twice the size of the text to convert plus space for terminating nul character
-    //char buffer[sizeof(ascii) * 2 + 1];
-    char buffer[ascii.length() * 2 + 1];
-    Serial.print("BUFFERSIZE: ");
-    Serial.println(sizeof(ascii) * 2 + 1);
-    // 'clear' buffer
-    buffer[0] = '\0';
-
-    // loop through character array
-    for (uint8_t cnt = 0; cnt < ascii.length(); cnt++) {
-        // conver each character to its hex representation
-        itoa(ascii[cnt], &buffer[cnt * 2], 16);
+    if (){
+        return true;
+    }else {
+        return false;
     }
-
-    // ***** debug ******
-    Serial.print("BUFFER: ");
-    Serial.println(buffer);
-    // ***** end debug ******
-
-    return buffer;
 }
 */
 
-String asciiToHexdecimal(String ascii) {
+String asciiToHexdecimal(String dataASCII) {
 
     String dataHex = "";
-    for (size_t i = 0; i < ascii.length(); i++) {
+    for (size_t i = 0; i < dataASCII.length(); i++) {
 
-        if(ascii.charAt(i) == '\r'){
+        if(dataASCII.charAt(i) == '\r'){
             dataHex.concat("0");
         }
         else{
-            dataHex.concat( String( int( ascii.charAt(i) ) , HEX) );
+            dataHex.concat( String( int( dataASCII.charAt(i) ) , HEX) );
         }
     }
-
     return dataHex;
 }
 
-
-
 /* -------------------- HTTPS REQUEST -------------------- */
 
-String getHttps(String url, String host) {
-    return "GET " + url + " HTTP/1.1\r\n" +
+String getRequestHTTPS(String api, String host) {
+
+    return "GET " + api + " HTTP/1.1\r\n" +
             "Host: " + host + "\r\n" +
             "User-Agent: BuildFailureDetectorESP8266\r\n" +
             "Connection: close\r\n\r\n";
 }
 
-String postHttps(String url, String host, String payload) {
-    return "POST " + url + " HTTP/1.1\r\n" +
+String postRequestHTTPS(String api, String host, String payload) {
+
+    return "POST " + api + " HTTP/1.1\r\n" +
             "Host: " + host + "\r\n" +
             "User-Agent: BuildFailureDetectorESP8266\r\n" +
             "Content-Type: application/json\r\n" +
@@ -119,55 +100,23 @@ String postHttps(String url, String host, String payload) {
 }
 
 /* -------------------- PAYLOAD IOTA -------------------- */
-/* ORIGINALE
+
 String makeData() {
-    //String iotadata = "data from a esp8266 with dht11 sensor"
-    return "---Informazioni---\r\n"
-            "Data origins: esp8266 with dht11 sensor\r\n"
-            "Timestamp: " + timestamp +  "\r\n" +
-            "Coordinate: " + coordinate + "\r\n" +
-            "base installate il " + "\r\n" +
-            //"messggio precedente" => creare una catena di messaggi facilmente percorribile
-            "---Fine Informazioni---" + "\r\n" +
-            "---Sensore---" + "\r\n" +
-            "Temperatura: " + temperature_Celsius + "\r\n" +
-            "Umidità: " + humidity + "\r\n" +
-            "---Fine sensore---";
-}
-*/
-/*
-String makeData(String[] Data) {
-    //String iotadata = "data from a esp8266 with dht11 sensor"
-    //humidity = dht.readHumidity();
-    //temperature_Celsius = dht.readTemperature();
-    return "---Informazioni---\r\n"
-            "Data origins: esp8266 with dht11 sensor\r\n"
-            "---Fine Informazioni---\r\n"
-            "---Sensore---\r\n"
-            "Temperatura: " + String(dht.readTemperature(), 3) + " C" + "\r\n" +
-            "Umidità: " + String(dht.readHumidity(), 3) + " %"+ "\r\n" +
-            "---Fine sensore---";
-}*/
-String makeData(String passedDataArray[]) {
-    //String iotadata = "data from a esp8266 with dht11 sensor"
-    //humidity = dht.readHumidity();
-    //temperature_Celsius = dht.readTemperature();
-    return "---Informazioni---\r\n"
-            "Data origins: esp8266 with dht11 sensor\r\n"
-            "---Fine Informazioni---\r\n"
-            "---Sensore---\r\n"
-            "Temperatura: " + passedDataArray[0] + " C" + "\r\n" +
-            "Umidità: " + passedDataArray[1] + " %"+ "\r\n" +
-            passedDataArray[2] + "\r\n" +
-            "---Fine sensore---";
+    return "{\"data\":{\"info\":{\"indexMessage\":\"" + String(indexMessage) + 
+    "\",\"stationName\":\"" + String(stationName) + 
+    "\",\"installationDate\":\"" + String(installationDate) + 
+    "\",\"coordinates\":\"" + String(coordinates) + 
+    "\",\"placeName\":\"" + String(placeName) + 
+    "\",\"owner\":\"" + String(owner) + 
+    "\",\"sensor1\":\"" + String(sensor1) + 
+    "\",\"sensor2\":\"" + String(sensor2) + 
+    "\"},\"sensorData\":{\"day\":\"" + String(sensorData[DATE_INDEX]) + 
+    "\",\"time\":\"" + String(sensorData[TIME_INDEX]) + 
+    "\",\"temperature\":\"" + String(sensorData[TEMPERATURE_INDEX]) + 
+    "\",\"humidity\":\"" + String(sensorData[HUMIDITY_INDEX]) + 
+    "\",\"co2_ppm\":\"" + String(sensorData[CO2_PPM_INDEX]) + "\"}}}";
 }
 
-//String makeData() {
-//    //String iotadata = "data from a esp8266 with dht11 sensor"
-//    return "esp8266withdht11sensor";
-//}
-
-/*
 String makePayload(String index, String data) {
     //Hornet API: https://editor.swagger.io/?url=https://raw.githubusercontent.com/rufsam/protocol-rfcs/master/text/0026-rest-api/0026-rest-api.yaml
     // index => HEX
@@ -175,27 +124,8 @@ String makePayload(String index, String data) {
     return "{\"payload\":{\"type\":2,\"index\":\"" + asciiToHexdecimal(index) + "\",\"data\":\"" + asciiToHexdecimal(data) + "\"}}";
 
 }
-*/
 
-String makePayload(String index, String data) {
-    //Hornet API: https://editor.swagger.io/?url=https://raw.githubusercontent.com/rufsam/protocol-rfcs/master/text/0026-rest-api/0026-rest-api.yaml
-    // index => HEX
-    // data => HEX
-    //Serial.print("DATA: ");
-    //Serial.println(data);
-    //Serial.print("LENG: ");
-    //Serial.println(data.length());
-    //Serial.println(sizeof(data));
-    //String testlung = "414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141";
-
-
-    return "{\"payload\":{\"type\":2,\"index\":\"" + index + "\",\"data\":\"" + asciiToHexdecimal(data) + "\"}}";
-
-    //return "{\"payload\":{\"type\":2,\"index\":\"" + index + "\",\"data\":\"" + testlung + "\"}}";
-
-}
-
-/* -------------------- void setup() -------------------- */
+// -------------------- void setup() -------------------- //
 
 void setup() {
 
@@ -204,189 +134,167 @@ void setup() {
 
     //step2 => setup Wi-Fi
     //set esp8266 mode only as client and not function as Hostspot
-    // => hotspost => monitorarlo? poterlo ricompilare ?? cfr esp8266-iot-framework OTA
     WiFi.mode(WIFI_STA);
+    //set WiFi credentials
     WiFi.begin(ssid, password);
 
-    //step3 => Set time via NTP, as required for x.509 validation
-    configTime(ECT, 0, "pool.ntp.org", "time.nist.gov");
+    //whait for esp8266 to connect to Wi-Fi
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+    }
 
-    /***** debug ******/
-    Serial.println("Waiting for NTP time sync: ");
+    //step3 => Set time via NTP, as required for x.509 validation    
+    configTime(3600 * UTC_offset, 3600 * DST_offset , "europe.pool.ntp.org", "pool.ntp.org");
+
     time_t now = time(nullptr);
     while (now < 8 * 3600 * 2) {
         delay(500);
-        Serial.print(".");
         now = time(nullptr);
     }
-    Serial.println("");
-    struct tm timeinfo;
-    gmtime_r(&now, &timeinfo);
-    Serial.print("Current time: ");
-    Serial.print(asctime(&timeinfo));
-    /***** end debug ******/
 
     //step4 => set certificate for veryfing the host
     iotaNode.setTrustAnchors(&cert);
 
-    Serial.print("MFLN: ");
-    Serial.println(iotaNode.probeMaxFragmentLength(host_iotanode, 443, 512));
-
-    iotaNode.setBufferSizes(512,512);
-
+    if(iotaNode.probeMaxFragmentLength(host_iotanode, port_iotanode, 512) == true){
+        //set MFLN negoziation
+        iotaNode.setBufferSizes(512,512);
+    }
+    
     //step5 => set the pin of DHT
     pinMode(DHTPin, INPUT);
     dht.begin();
     
 }
 
-/* -------------------- void loop() -------------------- */
+// -------------------- void loop() -------------------- //
 
 void loop() {
-    //step1 => verify if the esp8266 is connected to Wi-Fi
+
+    // ----- step1 => connect to WiFi ----- //
+    int wait = 0;
     while (WiFi.status() != WL_CONNECTED) {
-        //delay(500);
-        //Serial.print(".");
-        //wait until tot min poi restart esp8266
+
+        if (wait > 120) {
+            //wait for 2 min after that reset the ESP
+            ESP.restart();
+        }
+        wait++;
+        delay(1000);
     }
 
-    //step2 => verify if the esp8266 time is sync
+    // ----- step2 => sync time with NTP ----- //
 
-    // ?????????????
+    if (WiFi.status() == WL_CONNECTED){
 
-    //step3 => verify if the esp8266 is connected to iota node
+        int wait = 0;
+        time_t now = time(nullptr);
+        while (now < 8 * 3600 * 2) {
+
+            now = time(nullptr);
+            if (wait > 120) {
+                //wait for 2 min after that reset the ESP
+                ESP.restart();
+            }
+            wait++;
+            delay(1000);
+        }
+    }
+
+    // ----- step3 => verify if IOTA node is alive ----- //
 
     if (!iotaNode.connect(host_iotanode, port_iotanode)) {
-        Serial.println("Connection failed");
         return;
     }
-    //step4 => read data from sensor
 
-    //DTH11
-    // Read temperature as Celsius (the default)
-    humidity = dht.readHumidity();
-    temperature_Celsius = dht.readTemperature();
+    // ----- step4 => collect sensor data ----- //
 
-    /***** debug ******/
-    Serial.printf("Temperature = %.2f ºC \n", temperature_Celsius);
-    Serial.printf("Humidity= %f %\n", humidity);
-    /***** end debug ******/
+    //temperature
+    float temperature = dht.readTemperature();
+    sensorData[TEMPERATURE_INDEX] = String(temperature, 2);
 
-    //MQ-135
+    //humidity
+    float humidity = dht.readHumidity();
+    sensorData[HUMIDITY_INDEX] = String(humidity, 2);
 
+    //co2 ppm
+    float correctedPPM = mq135_sensor.getCorrectedPPM(temperature, humidity);
+    sensorData[CO2_PPM_INDEX] = String(correctedPPM, 2);
 
-    //step5 => incapsulate data in json (create payload) //TO-DO
-
-    //stabilire l'indice
-    //stabilire il formato della richiesta con le varie specifiche (nome stazione, posizione, timestamp)
-    //iotaindex = "esp8266iota_elnew";
-    iotaindexHex = "65737038323636696f74615f656c6e6577";
-
-
-    /*
-    //time
+    struct tm tmstruct;
+    tmstruct.tm_year = 0;
     time_t now = time(nullptr);
-    while (now < 8 * 3600 * 2) {
-        delay(500);
-        //Serial.print(".");
-        now = time(nullptr);
+    gmtime_r(&now, &tmstruct);
+
+    String string_day = String(tmstruct.tm_mday);
+    String string_month = String(( tmstruct.tm_mon)+1);
+
+    if(tmstruct.tm_mday < 10){
+        string_day = "0" + String(tmstruct.tm_mday);
     }
-    //Serial.println("");
-    struct tm timeinfo;
-    gmtime_r(&now, &timeinfo);
-    timestamp = asctime(&timeinfo);
-    */
     
-    //coordinate = "41°40'23.1\"N 12°46'05.2\"E";
+    if(( tmstruct.tm_mon)+1 < 10){
+        string_month = "0" + String(( tmstruct.tm_mon)+1);
+    }
 
+    sensorData[DATE_INDEX] = string_day + "/" + string_month + "/" + String((tmstruct.tm_year)+1900);
 
-    //step5 => send data to iota node
+    String string_hour = String(tmstruct.tm_hour + UTC_offset + DST_offset);
+    String string_minute = String(tmstruct.tm_min);
+    String string_second = String(tmstruct.tm_sec);
 
-    /***** debug ******/
-    Serial.println("-----POST-----");
+    //test DST
 
-    Serial.print("API: ");
-    Serial.println(hornet_api_post_message);
+    if(tmstruct.tm_hour + UTC_offset + DST_offset < 10){
+        
+        string_hour = "0" + String(tmstruct.tm_hour + UTC_offset + DST_offset);
+    }
 
-    Serial.print("HOST: ");
-    Serial.println(host_iotanode);
+    if(tmstruct.tm_hour + UTC_offset + DST_offset == 24) {
+        string_hour = "00";
+    }
 
+    if(tmstruct.tm_hour + UTC_offset + DST_offset == 25) {
+        string_hour = "01";
+    }
 
+    if(tmstruct.tm_min < 10){
+        string_minute = "0" + String(tmstruct.tm_min);
+    }
 
-    dataArray[0] = String(humidity, 3);
-    dataArray[1] = String(temperature_Celsius, 3);
-    dataArray[2] = "testarray";
+    if(tmstruct.tm_sec < 10){
+        string_second = "0" + String(tmstruct.tm_sec);
+    }
 
-    String testdata = makeData(dataArray);
-    //Serial.println("DATA: \r\n" + testdata);
+    sensorData[TIME_INDEX] = string_hour + ":" + string_minute + ":" + string_second;
 
-    //String payload = makePayload(iotaindex, testdata);
-    String payload = makePayload(iotaindexHex, testdata);
-    Serial.println("PAYLOAD: \r\n" + payload);
+    // ----- step5 => make dataPayload ----- //
 
-    String post = postHttps(hornet_api_post_message, host_iotanode, payload);
-    Serial.println("POST: \r\n" + post);
+    String payload = makePayload(indexMessage, makeData());
 
-    iotaNode.print( post );
-    /***** end debug ******/
+    // ----- step6 => POST data ----- //
 
-    //iotaNode.print( post(hornet_api_post_message, host_iotanode, makePayload(iotaindex, makeData())) );
+    String post = postRequestHTTPS(hornet_api_post_message, host_iotanode, payload);
+    iotaNode.print(post);
 
-    //step6 => verify if the data are recived correctly
+    // ----- step7 => verify if data are recived correctly ----- //
 
-    Serial.println("Request sent");
+    //Server response
+    String line3;
     while (iotaNode.connected()) {
-        String line = iotaNode.readStringUntil('\n');
-        if (line == "\r") {
-            Serial.println("Headers received");
+        line3 = iotaNode.readStringUntil('\n');
+        if (line3 == "\r") {
+            //Serial.println(line3);
             break;
         }
     }
-    //payload della risposta del server
-    String line = iotaNode.readStringUntil('\n');
 
-    Serial.println("Reply was:");
-    Serial.println("==========");
-    Serial.println(line);
-    Serial.println("==========");
-    Serial.println("Closing connection");
+    String line2 = iotaNode.readStringUntil('\n');
+    Serial.println(line2);
 
-    //step7 => if all above success go to sleed mode
+    // ----- step8 => go to sleed for 60 seconds ----- //
 
-    //read data every 30 min? (test with 1-2min)
+    //ESP.deepSleep(60e6);
+    
+    //60 minutes
+    ESP.deepSleep(3600e6);
 }
-
-
-    //////////////////////////////////////////////////////////7
-
-    /*Serial.println("Test Connection");
-    while (iotaNode.connected()) {
-        //qui si dovrebbe controllare se l'header è codice 200 => è andato tutto bene
-        String line = iotaNode.readStringUntil('\n');
-        if (line == "\r") {
-            //non c'è più niente da leggere
-            Serial.println("Headers received");
-            break;
-        }
-    }
-
-    if (!iotaNode.connect(host_iotanode, port_iotanode)) {
-        Serial.println("Connection failed");
-        return;
-    }
-
-    
-    //payload della risposta del server
-    String line = iotaNode.readStringUntil('\n');
-
-    Serial.println("Reply was:");
-    Serial.println("==========");
-    Serial.println(line);
-    Serial.println("==========");
-    Serial.println("Closing connection");
-    */
-
-
-
-
-

@@ -9,17 +9,17 @@
 const char* host_iotanode = "tangle.iotaqubic.us";
 const uint16_t port_iotanode = 443; //HTTPS
 
-// not valid before: 2022-01-26 15:23:09
-// not valid after:  2022-04-26 15:23:08
-const char fingerprint_iotanode [] PROGMEM = "25:B6:D9:A8:92:FD:CD:B5:21:79:77:C9:BC:82:B6:14:90:72:ED:44";
+// not valid before: 2022-04-18 22:40:10 GMT
+// not valid after:  2022-07-17 22:40:09 GMT
+//https://holtstrom.com/michael/tools/hextopem.php
+const char fingerprint_iotanode [] PROGMEM = "28:D0:8D:02:18:B0:EC:35:14:89:C4:80:A7:39:D9:2E:43:58:68:26";
 const char publickey_iotanode [] PROGMEM = R"PUBKEY(
 -----BEGIN PUBLIC KEY-----
-tMFVYxa4pDuoPY9sgYrgSEX4nenoDjg3J/P9Oh4ezzqrpWZeAN1gsfCozKwU+oDN
-wxFG9x0NltTy7wkET2SKek/WP/WfvmFWbZHyHdsJWmPCzdCCWrjgIK0uHuWpLDmk
-rHJmpcheot/fQEXBThOqsT66d2AP0M88pVU6r2wksnC75dVFLxw8SBRZaKg6rViV
-n6xwGu8XbT7vB+oIK9RERERC6/mK65xmr62MadKIJyIGm6y60HLdYij9DGrc/iF9
-b6hkx+VU4xay26QVHhkt/JluGZ4OvSke88nCsdIzlt27i8gvTvJgbYhWpIZUOCxB
-rtwyKZm9bU4Lsm2IFoptlw==
+s8QFMfXbcM9kdCb076cWUuboTO20y2TIm28WtDQmjHbSQZCLcXy3RTkbXWSLm403jwgsZ419/F4
+/GdNZGDYYqCyFAbgoNmoaJqZmTj094/8FwCElTNh2pdvg0FILT/z+2i8hVLPFBtSZ9CcU1HUi4H
+z0RP0fCgunLDUx1ruAcdADAOMmVRHlQt6VdJom9j/UmPNJI4LdIEbF3LNnDkdVysWbRIjvEaI1e
+h6zME64vw/bbbLXnIE6zgDLg3MAKhFkHPao/oIglj1tNcMFvf8B362+Q5v9ZRH+n7+bc5o7pfaP
+gJi6+a0ctSGq7pq5DZxA7oEbLaxufT+D1Q5WwKq8dw==
 -----END PUBLIC KEY-----
 )PUBKEY";
 
